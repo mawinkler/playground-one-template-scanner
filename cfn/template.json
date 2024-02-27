@@ -1,0 +1,497 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "template-validation\nCloudFormation validation via CloudConformity API\n",
+  "Globals": {
+    "Function": {
+      "Timeout": 3
+    }
+  },
+  "Parameters": {
+    "Stage": {
+      "Description": "Set to dev / uat / prd etc.",
+      "Type": "String",
+      "Default": "dev"
+    },
+    "CreateVPCEndpoint": {
+      "Description": "Set to true if an API Gateway VPC Endpoint is to be created",
+      "Type": "String",
+      "Default": false
+    },
+    "ExistingApiVPCEndpointId": {
+      "Type": "String",
+      "Description": "If CreateVPCEndpoint is false, provide an API Gateway VPCE endpoint id to be used by this private API. Leave blank if CreateVPCEndpoint is true",
+      "Default": "vpce-02f2a3ce3aa0c4a4b"
+    },
+    "VpcIdParameter": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "VPC ID in which the VPC Endpoint should be created"
+    },
+    "VpcEndpointAllowedCIDRRange": {
+      "Type": "String",
+      "Description": "CIDR range that can access the API VPCE. Set to your internal network range, or more restrictive",
+      "AllowedPattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}(\\/([0-9]|[1-2][0-9]|3[0-2]))?$",
+      "Default": "10.0.0.0/8"
+    },
+    "VpcEndpointSubnetIdsParameter": {
+      "Type": "CommaDelimitedList",
+      "Description": "The ID of one or more subnets in which to create an endpoint network interface"
+    }
+  },
+  "Conditions": {
+    "CreatingVPCEndpoint": {
+      "Fn::Equals": [
+        {
+          "Ref": "CreateVPCEndpoint"
+        },
+        "true"
+      ]
+    }
+  },
+  "Resources": {
+    "TemplateScanner": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "CodeUri": "src/",
+        "Handler": "validate.app.lambda_handler",
+        "Runtime": "python3.8",
+        "Timeout": 30,
+        "Environment": {
+          "Variables": {
+            "STAGE": {
+              "Fn::Sub": "${Stage}"
+            },
+            "EXCEPTIONS_TABLENAME": {
+              "Ref": "ExceptionsTable"
+            }
+          }
+        },
+        "Policies": [
+          {
+            "AWSSecretsManagerGetSecretValuePolicy": {
+              "SecretArn": {
+                "Ref": "APIKeySecret"
+              }
+            }
+          },
+          {
+            "DynamoDBReadPolicy": {
+              "TableName": {
+                "Ref": "ExceptionsTable"
+              }
+            }
+          }
+        ],
+        "Events": {
+          "PostEvent": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/validate",
+              "Method": "post",
+              "RestApiId": {
+                "Ref": "PrivateApiGateway"
+              }
+            }
+          }
+        }
+      }
+    },
+    "ExceptionRequest": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "CodeUri": "src/",
+        "Handler": "validate.exceptions.request",
+        "Runtime": "python3.8",
+        "Timeout": 30,
+        "Environment": {
+          "Variables": {
+            "EXCEPTIONS_TABLENAME": {
+              "Ref": "ExceptionsTable"
+            }
+          }
+        },
+        "Policies": [
+          {
+            "DynamoDBWritePolicy": {
+              "TableName": {
+                "Ref": "ExceptionsTable"
+              }
+            }
+          }
+        ],
+        "Events": {
+          "PostEvent": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/exceptions",
+              "Method": "post",
+              "RestApiId": {
+                "Ref": "PrivateApiGateway"
+              }
+            }
+          }
+        }
+      }
+    },
+    "ExceptionDelete": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "CodeUri": "src/",
+        "Handler": "validate.exceptions.delete",
+        "Runtime": "python3.8",
+        "Timeout": 30,
+        "Environment": {
+          "Variables": {
+            "EXCEPTIONS_TABLENAME": {
+              "Ref": "ExceptionsTable"
+            }
+          }
+        },
+        "Policies": [
+          {
+            "DynamoDBCrudPolicy": {
+              "TableName": {
+                "Ref": "ExceptionsTable"
+              }
+            }
+          }
+        ],
+        "Events": {
+          "PostEvent": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/exceptions",
+              "Method": "delete",
+              "RestApiId": {
+                "Ref": "PrivateApiGateway"
+              }
+            }
+          }
+        }
+      }
+    },
+    "ExceptionApproval": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "CodeUri": "src/",
+        "Handler": "validate.exceptions.approve",
+        "Runtime": "python3.8",
+        "Timeout": 30,
+        "Environment": {
+          "Variables": {
+            "EXCEPTIONS_TABLENAME": {
+              "Ref": "ExceptionsTable"
+            }
+          }
+        },
+        "Policies": [
+          {
+            "DynamoDBCrudPolicy": {
+              "TableName": {
+                "Ref": "ExceptionsTable"
+              }
+            }
+          }
+        ],
+        "Events": {
+          "PostEvent": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/exceptions",
+              "Method": "put",
+              "RestApiId": {
+                "Ref": "PrivateApiGateway"
+              }
+            }
+          }
+        }
+      }
+    },
+    "ExceptionsTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": {
+          "Fn::Sub": "TemplateScannerExceptions-${Stage}"
+        },
+        "KeySchema": [
+          {
+            "KeyType": "HASH",
+            "AttributeName": "partKey"
+          },
+          {
+            "KeyType": "RANGE",
+            "AttributeName": "sortKey"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "partKey",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "sortKey",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "APIKeySecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "template-validator/${Stage}"
+        },
+        "Description": "This secret contains the API key for CloudConformity.",
+        "SecretString": " {\"api-key\":\"ReplaceMeWithTheRealDeal\"} "
+      }
+    },
+    "ApiVPCESecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "CreatingVPCEndpoint",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VpcIdParameter"
+        },
+        "GroupDescription": {
+          "Fn::Sub": "Allows access over 443 from ${VpcEndpointAllowedCIDRRange}"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": {
+              "Ref": "VpcEndpointAllowedCIDRRange"
+            }
+          }
+        ]
+      }
+    },
+    "ApiVPCEndpoint": {
+      "Type": "AWS::EC2::VPCEndpoint",
+      "Condition": "CreatingVPCEndpoint",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VpcIdParameter"
+        },
+        "ServiceName": {
+          "Fn::Sub": "com.amazonaws.${AWS::Region}.execute-api"
+        },
+        "VpcEndpointType": "Interface",
+        "PrivateDnsEnabled": true,
+        "SubnetIds": {
+          "Ref": "VpcEndpointSubnetIdsParameter"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "ApiVPCESecurityGroup"
+          }
+        ]
+      }
+    },
+    "PrivateApiGateway": {
+      "Type": "AWS::Serverless::Api",
+      "Properties": {
+        "StageName": {
+          "Ref": "Stage"
+        },
+        "MethodSettings": [
+          {
+            "HttpMethod": "*",
+            "ResourcePath": "/*"
+          }
+        ],
+        "EndpointConfiguration": "PRIVATE",
+        "DefinitionBody": {
+          "swagger": 2.0,
+          "info": {
+            "title": {
+              "Fn::Sub": "${AWS::StackName}-TemplateScannerPrivateApi-${Stage}"
+            }
+          },
+          "basePath": {
+            "Fn::Sub": "/${Stage}"
+          },
+          "schemes": ["https"],
+          "x-amazon-apigateway-policy": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": ["execute-api:Invoke"],
+                "Resource": "execute-api:/*",
+                "Condition": {
+                  "StringEquals": {
+                    "aws:sourceVpce": {
+                      "Fn::If": [
+                        "CreatingVPCEndpoint",
+                        {
+                          "Ref": "ApiVPCEndpoint"
+                        },
+                        {
+                          "Ref": "ExistingApiVPCEndpointId"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "paths": {
+            "/validate": {
+              "post": {
+                "x-amazon-apigateway-integration": {
+                  "responses": {
+                    "default": {
+                      "statusCode": 200
+                    }
+                  },
+                  "uri": {
+                    "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${TemplateScanner}/invocations"
+                  },
+                  "passthroughBehavior": "when_no_match",
+                  "httpMethod": "POST",
+                  "type": "AWS_PROXY"
+                }
+              }
+            },
+            "/exceptions": {
+              "post": {
+                "x-amazon-apigateway-integration": {
+                  "responses": {
+                    "default": {
+                      "statusCode": 200
+                    }
+                  },
+                  "uri": {
+                    "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ExceptionRequest}/invocations"
+                  },
+                  "passthroughBehavior": "when_no_match",
+                  "httpMethod": "POST",
+                  "type": "AWS_PROXY"
+                }
+              },
+              "put": {
+                "x-amazon-apigateway-integration": {
+                  "responses": {
+                    "default": {
+                      "statusCode": 200
+                    }
+                  },
+                  "uri": {
+                    "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ExceptionApproval}/invocations"
+                  },
+                  "passthroughBehavior": "when_no_match",
+                  "httpMethod": "POST",
+                  "type": "AWS_PROXY"
+                }
+              },
+              "delete": {
+                "x-amazon-apigateway-integration": {
+                  "responses": {
+                    "default": {
+                      "statusCode": 200
+                    }
+                  },
+                  "uri": {
+                    "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ExceptionDelete}/invocations"
+                  },
+                  "passthroughBehavior": "when_no_match",
+                  "httpMethod": "POST",
+                  "type": "AWS_PROXY"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ParameterStoreEntryURL": {
+      "Type": "AWS::SSM::Parameter",
+      "Condition": "CreatingVPCEndpoint",
+      "Properties": {
+        "Description": "The API URL for the private validate API endpoint.",
+        "Type": "String",
+        "Name": {
+          "Fn::Sub": "/CodeBuild/validate-api-url/${Stage}"
+        },
+        "Value": {
+          "Fn::Join": [
+            "",
+            [
+              "https://",
+              {
+                "Fn::Select": [
+                  1,
+                  {
+                    "Fn::Split": [
+                      ":",
+                      {
+                        "Fn::Select": [
+                          0,
+                          {
+                            "Fn::GetAtt": ["ApiVPCEndpoint", "DnsEntries"]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "Fn::Sub": "/${Stage}/validate/"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "ParameterStoreEntryHostHeader": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Description": "The private API endpoint used as Host header in call to VPC endpoint",
+        "Type": "String",
+        "Name": {
+          "Fn::Sub": "/CodeBuild/validate-host/${Stage}"
+        },
+        "Value": {
+          "Fn::Sub": "${PrivateApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "TemplateScannerFunction": {
+      "Description": "TemplateScanner Lambda Function ARN",
+      "Value": {
+        "Fn::GetAtt": ["TemplateScanner", "Arn"]
+      }
+    },
+    "TemplateScannerFunctionIamRole": {
+      "Description": "Implicit IAM Role created for TemplateScanner function",
+      "Value": {
+        "Fn::GetAtt": ["TemplateScannerRole", "Arn"]
+      }
+    },
+    "VPCEndpointDNS": {
+      "Condition": "CreatingVPCEndpoint",
+      "Description": "URL for for the execute-api VPC endpoint",
+      "Value": {
+        "Fn::GetAtt": ["ParameterStoreEntryURL", "Value"]
+      }
+    },
+    "HostHeaderValue": {
+      "Description": "The Host header when accessing the private API via VPC endpoint",
+      "Value": {
+        "Fn::GetAtt": ["ParameterStoreEntryHostHeader", "Value"]
+      }
+    }
+  }
+}
