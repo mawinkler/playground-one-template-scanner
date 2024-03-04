@@ -1,10 +1,9 @@
 name: Terraform Scan TfAction
 
-# A push on the repo triggers the workflow
+# A push --tags on the repo triggers the workflow
 on:
   push:
-    branches:
-      - "main"
+    tags: [ v* ]
 
 env:
   # Conformity API Key
@@ -25,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Prepare the Docker Buildx environment
+      # Prepare and authenticate to AWS using the given credentials
       - name: Checkout
         uses: actions/checkout@v4
 

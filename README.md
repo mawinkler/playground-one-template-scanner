@@ -69,7 +69,7 @@ If the `THRESHOLD` is not set, vulnerabilities will not fail the pipeline.
 
 ## Test
 
-Any push on the main branch will trigger the actions.
+Any push --tags on the main branch will trigger the actions.
 
 ## Support
 
