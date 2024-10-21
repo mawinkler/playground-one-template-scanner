@@ -8,11 +8,11 @@ Variants implemented:
 - Terraform plan action by [Daniel Flook](https://github.com/dflook/terraform-github-actions/tree/main/terraform-plan) (`terraform-template-scan-tfaction.yaml`).
 - CloudFormation template via shell script (`cloudformation-template-scan-shell.yaml`)
 
-All variants are using the same [Cloud One Conformity API](https://cloudone.trendmicro.com/docs/conformity/api-reference/tag/Template-scanner#paths/~1template-scanner~1scan/post).
+All variants are using the same [Vision One Cloud Posture API](https://automation.trendmicro.com/xdr/api-beta#tag/Template-scanner/paths/~1beta~1cloudPosture~1scanTemplate/post).
 
 ## Requirements
 
-- Cloud Conformity API Key (Power User)
+- Vision One API-Key (Cloud Posture -> View)
 
 ## Secrets
 
@@ -22,7 +22,7 @@ For simplicity, authentication to AWS is done via access and secret access key. 
 
 Add the following secrets:
 
-- API_KEY: `<Your Cloud One API Key>`
+- API_KEY: `<Your Vision One API Key>`
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
 
@@ -36,8 +36,11 @@ The included terraform configuration requires additionally:
 ```yaml
 env:
 ...
-  # Region in which Cloud Conformity serves your organisation
-  CLOUD_ONE_REGION: eu-central-1
+  # Vision One API Key
+  API_KEY: ${{ secrets.API_KEY }}
+
+  # Region in which Vision One serves your organisation
+  REGION: ""  # Examples: "eu." "sg." Leave blank if running in us.
 
   # Scan result threshold (fail on risk-level or higher)
   # THRESHOLD: any
@@ -54,7 +57,7 @@ Adapt the environment variables in the `env:`-section as required.
 
 Variable          | Purpose
 ----------------- | -------
-`CLOUD_ONE_REGION`| Cloud One Region of choice (e.g. eu-central-1, us-west-2, etc.).
+`REGION`          | Vision One Region of choice (e.g. "eu." "sg." Leave blank if running in us).
 `THRESHOLD`       | Defines the fail condition of the action in relation to discovered vulnerabilities. A threshold of `critical` does allow any number of vulnerabilities up to the criticality `high`. 
 
 Allowed values for the `THRESHOLD` are:

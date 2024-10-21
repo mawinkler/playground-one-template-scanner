@@ -1,17 +1,18 @@
 variable "aws_region" {
-  type = string
-}
-
-variable "access_ip" {
-  type = list
+  type    = string
+  default = "eu-central-1"
 }
 
 variable "account_id" {
   type = string
 }
 
+variable "access_ip" {
+  type = list(any)
+}
+
 variable "environment" {
-  type    = string
+  type = string
 }
 
 variable "one_path" {
