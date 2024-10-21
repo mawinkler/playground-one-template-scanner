@@ -3,6 +3,10 @@ variable "aws_region" {
   default = "eu-central-1"
 }
 
+variable "account_id" {
+  type = string
+}
+
 variable "access_ip" {
   type = list(any)
 }
