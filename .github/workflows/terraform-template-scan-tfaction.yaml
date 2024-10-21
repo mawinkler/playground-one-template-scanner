@@ -61,7 +61,7 @@ jobs:
               -d @data.txt > result.json
 
           # Extract findings risk-level
-          risk_levels=$(cat result.json | jq -r '.data[] | select(.attributes.status == "FAILURE") | .attributes."risk-level"')
+          risk_levels=$(cat result.json | jq -r '.scanResults[] | select(.status == "FAILURE") | .riskLevel')
 
           fail=0
           [ "${THRESHOLD}" = "any" ] && \
@@ -96,7 +96,7 @@ jobs:
           name: data
           path: data.txt
           retention-days: 30
-          
+
       # Fail the workflow if theshold reached
       - name: Fail Scan
         run: |
