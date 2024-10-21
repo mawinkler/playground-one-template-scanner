@@ -6,11 +6,11 @@ on:
     tags: [ v* ]
 
 env:
-  # Conformity API Key
-  CLOUD_ONE_API_KEY: ${{ secrets.API_KEY }}
+  # Vision One API Key
+  API_KEY: ${{ secrets.API_KEY }}
 
-  # Region in which Cloud Conformity serves your organisation
-  CLOUD_ONE_REGION: eu-central-1
+  # Region in which Vision One serves your organisation
+  REGION: ""  # Examples: "eu." "sg." Leave blank if running in us.
 
   # Scan result threshold (fail on risk-level or higher)
   # THRESHOLD: any
@@ -50,14 +50,14 @@ jobs:
         run: |
           # Create scan payload
           contents=$(cat ${{ steps.terraform_plan.outputs.json_plan_path }} | jq '.' -MRs)
-          payload="{\"data\":{\"attributes\":{\"type\":\"terraform-template\",\"contents\":${contents}}}}"
+          payload="{\"type\":\"terraform-template\",\"content\":${contents}}"
           printf '%s' ${payload} > data.txt
 
-          # # Scan template
+          # Scan template
           curl -s -X POST \
-              -H "Authorization: ApiKey ${CLOUD_ONE_API_KEY}" \
-              -H "Content-Type: application/vnd.api+json" \
-              https://${CLOUD_ONE_REGION}-api.cloudconformity.com/v1/template-scanner/scan \
+              -H "Authorization: Bearer ${API_KEY}" \
+              -H "Content-Type: application/json;charset=utf-8" \
+              https://api.{REGION}xdr.trendmicro.com/beta/cloudPosture/scanTemplate \
               -d @data.txt > result.json
 
           # Extract findings risk-level

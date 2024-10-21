@@ -10,7 +10,7 @@ env:
   API_KEY: ${{ secrets.API_KEY }}
 
   # Region in which Vision One serves your organisation
-  REGION: ""
+  REGION: ""  # Examples: "eu." "sg." Leave blank if running in us.
 
   # Scan result threshold (fail on risk-level or higher)
   # THRESHOLD: any
@@ -69,7 +69,7 @@ jobs:
           payload="{\"type\":\"terraform-template\",\"content\":${contents}}"
           printf '%s' ${payload} > data.txt
 
-          # # Scan template
+          # Scan template
           curl -s -X POST \
               -H "Authorization: Bearer ${API_KEY}" \
               -H "Content-Type: application/json;charset=utf-8" \
