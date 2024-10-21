@@ -73,7 +73,7 @@ jobs:
           curl -s -X POST \
               -H "Authorization: Bearer ${API_KEY}" \
               -H "Content-Type: application/json;charset=utf-8" \
-              https://api.{REGION}xdr.trendmicro.com/beta/cloudPosture/scanTemplate \
+              https://api.${REGION}xdr.trendmicro.com/beta/cloudPosture/scanTemplate \
               -d @data.txt > result.json
 
           # Extract findings risk-level
