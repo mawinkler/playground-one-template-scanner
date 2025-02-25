@@ -3,6 +3,8 @@ name: Terraform Scan TfAction
 # A push --tags on the repo triggers the workflow
 on:
   push:
+    branches:
+      - "main"
     tags: [ v* ]
 
 env:
@@ -13,11 +15,8 @@ env:
   REGION: ""  # Examples: "eu." "sg." Leave blank if running in us.
 
   # Scan result threshold (fail on risk-level or higher)
-  # THRESHOLD: any
-  # THRESHOLD: critical
+  # THRESHOLDS: any, critical, high, medium, low
   THRESHOLD: high
-  # THRESHOLD: medium
-  # THRESHOLD: low
 
 jobs:
   docker:
@@ -100,5 +99,16 @@ jobs:
       # Fail the workflow if theshold reached
       - name: Fail Scan
         run: |
-          ls -l
+          cat result\ 2.json | \
+            jq '.scanResults[] | select(.status == "FAILURE" and (.riskLevel == "HIGH" or .riskLevel == "CRITICAL")) | (.riskLevel + ": " + .resource + " - " + .description)'
           if [ -f "exceeded" ]; then exit 1; fi
+
+      # Terraform plan
+      - name: Terraform Apply
+        id: terraform_apply
+        uses: dflook/terraform-apply@v1
+        with:
+          path: infra
+          variables: |
+            account_id="${{ secrets.AWS_ACCOUNT_ID }}"
+            aws_region="${{ secrets.AWS_REGION }}"
