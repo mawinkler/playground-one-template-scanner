@@ -99,7 +99,7 @@ jobs:
       # Fail the workflow if theshold reached
       - name: Fail Scan
         run: |
-          cat result\ 2.json | \
+          cat result.json | \
             jq '.scanResults[] | select(.status == "FAILURE" and (.riskLevel == "HIGH" or .riskLevel == "CRITICAL")) | (.riskLevel + ": " + .resource + " - " + .description)'
           if [ -f "exceeded" ]; then exit 1; fi
 
