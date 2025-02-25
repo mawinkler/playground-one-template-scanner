@@ -16,7 +16,7 @@ env:
 
   # Scan result threshold (fail on risk-level or higher)
   # THRESHOLDS: any, critical, high, medium, low
-  THRESHOLD: high
+  THRESHOLD: critical
 
 jobs:
   docker:
