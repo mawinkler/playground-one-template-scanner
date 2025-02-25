@@ -16,7 +16,7 @@ env:
 
   # Scan result threshold (fail on risk-level or higher)
   # THRESHOLDS: any, critical, high, medium, low
-  THRESHOLD: critical
+  THRESHOLD: high
 
 jobs:
   docker:
@@ -79,7 +79,6 @@ jobs:
             ([[ ${risk_levels} == *CRITICAL* ]] || [[ ${risk_levels} == *HIGH* ]] || [[ ${risk_levels} == *MEDIUM* ]] || [[ ${risk_levels} == *LOW* ]]) && fail=5
 
           [ $fail -ne 0 ] && echo !!! Threshold exceeded !!! > exceeded || true
-          # rm -f data.txt plan.json
 
       # Upload Scan Result if available
       - name: Upload Scan Result Artifact
