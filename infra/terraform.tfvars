@@ -2,7 +2,7 @@
 access_ip = ["10.0.0.1/32"]
 
 # Environment Name
-environment = "scanner"
+environment = "tfscanner"
 
 # Path to Playground One
 one_path = "."
